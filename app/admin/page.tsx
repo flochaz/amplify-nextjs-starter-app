@@ -1,24 +1,29 @@
 // Page to create Depot and Allee using ui-components/*Form.jsx
 "use client";
-
 import * as Papa from "papaparse";
+
 import { generateClient } from 'aws-amplify/data';
 import { Schema } from "@/amplify/data/resource";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-} from "@aws-amplify/ui-react";
-import { cookiesClient } from "@/utils/amplify-utils";
+import { useEffect, useState } from "react";
 
 const client = generateClient<Schema>();
 
-export default async function Admin() {
-  const { data: allees } = await cookiesClient.models.Allee.list();
-  const { data: depots } = await cookiesClient.models.Depot.list();
-  const { data: inventaires } = await cookiesClient.models.Inventaire.list();
+export default  function Admin() {
+  const [depots, setDepots] = useState<Schema["Depot"][]>();
+  const [allees, setAllees] = useState<Schema["Allee"][]>();
+  const [inventaires, setInventaires] = useState<Schema["Inventaire"][]>();
+
+  useEffect(() => {
+    client.models.Depot.list().then((response) => {
+      setDepots(response.data);
+    });
+    client.models.Allee.list().then((response) => {
+      setAllees(response.data);
+    });
+    client.models.Inventaire.list().then((response) => {
+      setInventaires(response.data);
+    });
+  }, []);
 
 
   const depotChangeHandler = async (event: any) => {
@@ -38,7 +43,7 @@ export default async function Admin() {
             console.log("Depot already exists", existingDepot);
             continue;
           }
-          cookiesClient.models.Depot.create({
+          client.models.Depot.create({
               Nom: depot.Nom,
           });
         }
@@ -59,21 +64,22 @@ export default async function Admin() {
           const existingAllee = allees?.find(
             (existingAllee: any) => existingAllee.Lettre === allee.Lettre
           );
-          if (existingAllee) {
+          const depot = depots?.find(
+            (depot: Schema["Depot"]) => depot.Nom === allee.Depot
+          );
+          if (existingAllee && depot) {
             console.log("Allee already exists", existingAllee);
-            cookiesClient.models.Allee.update({
+            client.models.Allee.update({
               id: existingAllee.id,
-              depotAlleesId: depots?.find(
-                (depot) => depot.Nom === allee.Depot
-              )!.id,
+              depotAlleesId: depot.id,
             });
           } else {
             console.log("Allee does not exist yet: " + allee.Lettre);
-            cookiesClient.models.Allee.create({
+            client.models.Allee.create({
               Lettre: allee.Lettre,
               depotAlleesId: depots?.find(
-                (depot) => depot.Nom === allee.Depot
-              )!.id,
+                (depot: Schema["Depot"]) => depot.Nom === allee.Depot
+              )?.id,
             });
           }
         }
@@ -97,9 +103,15 @@ export default async function Admin() {
           );
           
           const date = convertHoneycodeDateToAWSDate(inventaire.Date);
-          if (existingInventaire) {
+          const depot = depots?.find(
+            (depot: Schema["Depot"]) => depot.Nom === inventaire.Depot
+          );
+          const allee = allees?.find(
+            (allee: Schema["Allee"]) => allee.Lettre === inventaire.Allee
+          );
+          if (existingInventaire && depot && allee) {
             console.log("Inventaire already exists", existingInventaire);
-            cookiesClient.models.Inventaire.update({
+            client.models.Inventaire.update({
               id: existingInventaire.id,
               Emplacement: inventaire.Emplacement,
               Reference: inventaire.Reference,
@@ -108,16 +120,12 @@ export default async function Admin() {
               NbColis: inventaire.NbColis,
               Quantite: inventaire.Quantite,
               Date: date,
-              depotInventairesId: depots?.find(
-                (depot) => depot.Nom === inventaire.Depot
-              )!.id,
-              alleeInventairesId: allees?.find(
-                (allee) => allee.Lettre === inventaire.Allee
-              )!.id,
+              depotInventairesId: depot.id,
+              alleeInventairesId: allee.id,
             });
           } else {
             console.log("Inventaire does not exist yet: " + inventaire.Lettre);
-            cookiesClient.models.Inventaire.create({
+            client.models.Inventaire.create({
               Emplacement: inventaire.Emplacement,
               Reference: inventaire.Reference,
               Ext: inventaire.Ext,
@@ -126,10 +134,10 @@ export default async function Admin() {
               Quantite: inventaire.Quantite,
               Date: date,
               depotInventairesId: depots?.find(
-                (depot) => depot.Nom === inventaire.Depot
+                (depot: Schema["Depot"]) => depot.Nom === inventaire.Depot
               )!.id,
               alleeInventairesId: allees?.find(
-                (allee) => allee.Lettre === inventaire.Allee
+                (allee: Schema["Allee"]) => allee.Lettre === inventaire.Allee
               )!.id,
             });
           }
@@ -160,101 +168,101 @@ export default async function Admin() {
       <>
         <h1>Depot</h1>
         <input
-          type="file"
-          name="file"
-          accept=".csv"
-          onChange={depotChangeHandler}
-          style={{ display: "block", margin: "10px auto" }}
-        />
-        {/* Table showing current Depot */}
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Id</TableCell>
-              <TableCell>Nom</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+        type="file"
+        name="file"
+        accept=".csv"
+        onChange={depotChangeHandler}
+        style={{ display: "block", margin: "10px auto" }}
+      />
+        {/* table showing current Depot */}
+        <table>
+          <thead>
+            <tr>
+              <th>Id</th>
+              <th>Nom</th>
+            </tr>
+          </thead>
+          <tbody>
             {depots?.map((depot) => (
-              <TableRow key={depot.id}>
-                <TableCell>{depot.id}</TableCell>
-                <TableCell>{depot.Nom}</TableCell>
-              </TableRow>
+              <tr key={depot.id}>
+                <td>{depot.id}</td>
+                <td>{depot.Nom}</td>
+              </tr>
             ))}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </>
       <>
         <h1>Allee</h1>
         <input
-          type="file"
-          name="file"
-          accept=".csv"
-          onChange={alleeChangeHandler}
-          style={{ display: "block", margin: "10px auto" }}
-        />
-        {/* Table showing current Allee */}
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Id</TableCell>
-              <TableCell>Nom</TableCell>
-              <TableCell>Depot</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+        type="file"
+        name="file"
+        accept=".csv"
+        onChange={alleeChangeHandler}
+        style={{ display: "block", margin: "10px auto" }}
+      />
+        {/* table showing current Allee */}
+        <table>
+          <thead>
+            <tr>
+              <th>Id</th>
+              <th>Nom</th>
+              <th>Depot</th>
+            </tr>
+          </thead>
+          <tbody>
             {allees?.map((allee) => (
-              <TableRow key={allee.id}>
-                <TableCell>{allee.id}</TableCell>
-                <TableCell>{allee.Lettre}</TableCell>
-                <TableCell>{allee.depotAlleesId}</TableCell>
-              </TableRow>
+              <tr key={allee.id}>
+                <td>{allee.id}</td>
+                <td>{allee.Lettre}</td>
+                <td>{allee.depotAlleesId}</td>
+              </tr>
             ))}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </>
       <>
         <h1>Inventaire</h1>
         <input
-          type="file"
-          name="file"
-          accept=".csv"
-          onChange={inventaireChangeHandler}
-          style={{ display: "block", margin: "10px auto" }}
-        />
-        {/* Table showing current Inventaire */}
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Id</TableCell>
-              <TableCell>Emplacement</TableCell>
-              <TableCell>Reference</TableCell>
-              <TableCell>Ext</TableCell>
-              <TableCell>PCB</TableCell>
-              <TableCell>NbColis</TableCell>
-              <TableCell>Quantite</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell>Depot</TableCell>
-              <TableCell>Allee</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+        type="file"
+        name="file"
+        accept=".csv"
+        onChange={inventaireChangeHandler}
+        style={{ display: "block", margin: "10px auto" }}
+      />
+        {/* table showing current Inventaire */}
+        <table>
+          <thead>
+            <tr>
+              <th>Id</th>
+              <th>Emplacement</th>
+              <th>Reference</th>
+              <th>Ext</th>
+              <th>PCB</th>
+              <th>NbColis</th>
+              <th>Quantite</th>
+              <th>Date</th>
+              <th>Depot</th>
+              <th>Allee</th>
+            </tr>
+          </thead>
+          <tbody>
             {inventaires?.map((inventaire:any) => (
-              <TableRow key={inventaire.id}>
-                <TableCell>{inventaire.id}</TableCell>
-                <TableCell>{inventaire.Emplacement}</TableCell>
-                <TableCell>{inventaire.Reference}</TableCell>
-                <TableCell>{inventaire.Ext}</TableCell>
-                <TableCell>{inventaire.PCB}</TableCell>
-                <TableCell>{inventaire.NbColis}</TableCell>
-                <TableCell>{inventaire.Quantite}</TableCell>
-                <TableCell>{inventaire.Date}</TableCell>
-                <TableCell>{inventaire.Depot?.Nom}</TableCell>
-                <TableCell>{inventaire.Allee?.Lettre}</TableCell>
-              </TableRow>
+              <tr key={inventaire.id}>
+                <td>{inventaire.id}</td>
+                <td>{inventaire.Emplacement}</td>
+                <td>{inventaire.Reference}</td>
+                <td>{inventaire.Ext}</td>
+                <td>{inventaire.PCB}</td>
+                <td>{inventaire.NbColis}</td>
+                <td>{inventaire.Quantite}</td>
+                <td>{inventaire.Date}</td>
+                <td>{inventaire.Depot?.Nom}</td>
+                <td>{inventaire.Allee?.Lettre}</td>
+              </tr>
             ))}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </>
     </>
   );
