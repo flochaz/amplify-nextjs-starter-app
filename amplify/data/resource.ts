@@ -8,11 +8,32 @@ specify that owners, authenticated via your Auth resource can "create",
 authenticated via an API key, can only "read" records.
 =========================================================================*/
 const schema = a.schema({
-  Todo: a
+  Inventaire: a.model({
+    Emplacement: a.string().required(),
+    Reference: a.string(),
+    Ext: a.string(),
+    PCB: a.integer(),
+    NbColis: a.integer(),
+    Quantite: a.integer(),
+    Date: a.date(),
+    Depot: a.belongsTo('Depot'),
+    Allee: a.belongsTo('Allee'),
+  }).authorization([a.allow.private()]),
+  Depot: a
     .model({
-      content: a.string(),
+      Nom: a.string(),
+      Allees: a.hasMany('Allee'),
+      Inventaires: a.hasMany('Inventaire'),
     })
-    .authorization([a.allow.owner(), a.allow.public().to(['read'])]),
+    .authorization([a.allow.private()]),
+
+  Allee: a
+    .model({
+      Lettre: a.string(),
+      Depot: a.belongsTo('Depot'),
+      Inventaires: a.hasMany('Inventaire'),
+    })
+    .authorization([a.allow.private()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -20,12 +41,8 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: 'apiKey',
-    // API Key is used for a.allow.public() rules
-    apiKeyAuthorizationMode: {
-      expiresInDays: 30,
-    },
-  },
+    defaultAuthorizationMode: 'userPool'
+  }
 });
 
 /*== STEP 2 ===============================================================
