@@ -22,7 +22,7 @@ import InventaireSearchBar from "@/ui-components/InventaireSearchBar";
 
 const client = generateClient<Schema>();
 
-export default function Sortie() {
+export default function SortiePage() {
   const [reference, setReference] = useState("");
   const [ext, setExt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
